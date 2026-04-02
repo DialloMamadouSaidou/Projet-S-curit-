@@ -1,4 +1,3 @@
-import java.io.*;
 import java.net.*;
 
 import java.util.ArrayList;
@@ -20,7 +19,7 @@ public class TCPServer {
                 ClientHandlerTCP ch = new ClientHandlerTCP();
                 ch.addInput(s);
                 ch.addInput(s);
-                ch.setHandler(new TCPClientHandler());
+                ch.setHandler(new MessageParser());
                 Thread t = new Thread(ch);
                 t.start();
                 clientThreads.add(t);
