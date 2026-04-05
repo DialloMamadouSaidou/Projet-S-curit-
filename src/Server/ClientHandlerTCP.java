@@ -1,14 +1,11 @@
 import java.io.*;
 import java.net.*;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class ClientHandlerTCP implements Runnable {
 
     private Socket clientSocket;
     private Object server;
-    private TCPClientHandler logicHandler;
+    private MessageParser logicHandler;
 
     public void addInput(Object input){
         if(input instanceof Socket){
@@ -18,7 +15,7 @@ public class ClientHandlerTCP implements Runnable {
         }
     }
 
-    public void setHandler(TCPClientHandler handler){
+    public void setHandler(MessageParser handler){
         this.logicHandler = handler;
     }
 
