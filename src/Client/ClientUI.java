@@ -47,17 +47,22 @@ public class ClientUI {
             System.out.println("3. Rejoindre une salle");
             System.out.println("0. Quitter");
 
-            String choice = scanner.nextLine();
+            System.out.println("Entrez votre choix: ");
 
+            String choice = scanner.nextLine();
+            System.out.println("Mon choix est: "+ choice);
             switch(choice){
                 case "1":
-                    listRooms();
+                    //listRooms();
+                    System.out.println("Choix 1");
                     break;
                 case "2":
-                    createRoom();
+                    //createRoom();
+                    System.out.println("Choix 2");
                     break;
                 case "3":
-                    joinRoom();
+                    //joinRoom();
+                    System.out.println("Choix 4");
                     break;
                 case "0":
                     running = false;

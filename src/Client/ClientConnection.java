@@ -18,7 +18,7 @@ public class ClientConnection {
             if(isConnected()){
                 closeConnection();
             }
-            socket =new Socket();
+            socket = new Socket();
             socket.connect(new InetSocketAddress(serverIp, serverPort), 5000);
 
             in =new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -26,7 +26,7 @@ public class ClientConnection {
 
             return true;
         } catch (IOException e){
-            lastError = "Erreur de connexion : "+e.getMessage();
+            lastError = "Erreur de connexion : " +e.getMessage();
             return false;
         }
 

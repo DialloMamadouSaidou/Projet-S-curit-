@@ -10,7 +10,7 @@ public class MessageParser {
             return false;
         }
 
-        return message.startsWith("GG| ");
+        return message.startsWith("GG|");
     }
 
     public String[] getParts(String message){
@@ -69,6 +69,21 @@ public class MessageParser {
         for(int i =2 ; i <parts.length; i++){
             System.out.println("Champ " + (i - 1) + ": " + parts[i]);
         }
+    }
+
+    public void handle(BufferedReader in, PrintWriter out){
+
+        try{
+            String message = in.readLine();
+
+            System.out.println("Message reçu: " + message);
+
+            out.println(message);
+        }catch(IOException e){
+            e.printStackTrace();
+        }
+
+
     }
 
 }
