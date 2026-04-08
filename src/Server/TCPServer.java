@@ -1,18 +1,14 @@
+import java.io.*;
 import java.net.*;
 
-import java.util.Dictionary;
-import java.util.Hashtable;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 //cm@villesaguenay.qc.ca
 
 public class TCPServer {
 
     public static void main(String[] args){
-        Dictionary<String, List<String>> list_user = new Hashtable<>();
-        List<ClientHandlerTCP> clientThreads = new CopyOnWriteArrayList<>();
+        List<Thread> clientThreads = new ArrayList<Thread>();
 
         ServerSocket ss = null;
 
@@ -23,19 +19,26 @@ public class TCPServer {
                 s = ss.accept();
                 ClientHandlerTCP ch = new ClientHandlerTCP();
                 ch.addInput(s);
-                ch.addInput(s);
-                ch.setHandler(new MessageParser());
-                clientThreads.add(ch); // On ajoute le handler à la liste
-               Thread t = new Thread(ch);
-               t.start();
+                ch.setHandler(new ClientHandlerTCP());
+                Thread t = new Thread(ch);
+                t.start();
+                clientThreads.add(t);
                 System.out.println("Accepted client");
+
             }
+            for(Thread ct: clientThreads) {
+                ct.join();
+            }
+
 
         }catch(Exception e){
             e.printStackTrace();
         }finally{
             try{
-                if(ss != null) ss.close();
+                for(Thread ct: clientThreads) {
+                    ct.join();
+                }
+                ss.close();
             }catch (Exception ee){ee.printStackTrace();}
         }
     }
