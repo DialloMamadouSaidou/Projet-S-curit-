@@ -1,33 +1,28 @@
 import java.net.*;
-
-import java.util.Dictionary;
-import java.util.Hashtable;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-//cm@villesaguenay.qc.ca
+
 
 public class TCPServer {
 
+    private static Map<String, ClientHandlerTCP> clientMap = new ConcurrentHashMap<>();
+    private static Map<String, GameRoom> sallesActives = new ConcurrentHashMap<>();
     public static void main(String[] args){
-        Dictionary<String, List<String>> list_user = new Hashtable<>();
-        List<ClientHandlerTCP> clientThreads = new CopyOnWriteArrayList<>();
-
         ServerSocket ss = null;
-
         try {
             ss = new ServerSocket(3031);
             Socket s;
+            System.out.println("Serveur en Ecoute au port 3031..");
+
             while(!ss.isClosed()) {
                 s = ss.accept();
                 ClientHandlerTCP ch = new ClientHandlerTCP();
-                ch.addInput(s);
-                ch.addInput(s);
+                ch.setSocket(s);
+                ch.setClientActive(sallesActives);
+                ch.setClientMap(clientMap);
                 ch.setHandler(new MessageParser());
-                clientThreads.add(ch); // On ajoute le handler à la liste
-               Thread t = new Thread(ch);
-               t.start();
+                Thread t = new Thread(ch);
+                t.start();
                 System.out.println("Accepted client");
             }
 
@@ -39,28 +34,8 @@ public class TCPServer {
             }catch (Exception ee){ee.printStackTrace();}
         }
     }
+
+    public static String ServerSetName(String name) {
+        return name;
+    }
 }
-
- /*
-            String bindIp = "127.0.0.1";
-            int port = 9090;
-            InetAddress bindAddress = InetAddress.getByName(bindIp);
-            serverSocket = new ServerSocket(port, 50, bindAddress);
-
-            while(true){
-
-                Socket clientSocket = serverSocket.accept();
-                System.out.println("Client connected from " + clientSocket.getRemoteSocketAddress());
-
-                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-                String line;
-
-                while((line = in.readLine()) != null){
-                    System.out.println("Received: "+ line);
-                    out.println("Echo: " + line);
-                }
-                clientSocket.close();
-                System.out.println("Client disconnected");
-
-             */
