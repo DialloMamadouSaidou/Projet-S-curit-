@@ -1,8 +1,5 @@
 import java.io.*;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Map;
-
+import java.util.*;
 
 public class MessageParser {
 
@@ -63,7 +60,7 @@ public class MessageParser {
         String action = parser_message[1].toUpperCase();
 
         //je recupere ici les requete qui demandent seulement deux paramètres.
-        List<String> all_request = List.of("CONNECT", "LIST_ROOM", "LEAVE_ROOM", "QUICK_ROOM");
+        List<String> all_request = List.of("CONNECT", "LIST_ROOM", "LEAVE_ROOM", "QUICK_ROOM", "GAME_STARTED");
 
 
         if(all_request.contains(action)){
@@ -119,6 +116,10 @@ public class MessageParser {
         switch (mon_message){
             case "CONNECT":
                 String nom = message.split("\\|")[2].trim();
+                int port = Integer.parseInt(message.split("\\|")[3].trim());
+
+                context.setupP2P(nom, port);
+
                 context.setNom(nom);
 
                 out.println("GG|OK|Bienvenue " + nom);
@@ -167,6 +168,34 @@ public class MessageParser {
                     out.println("GG|NOTCONTENT|"+salle);
                 }
                 break;
+
+            case "GAME_STARTED":
+                salle = parts[2];
+                GameRoom ma_game = context.get_game_room(salle);
+                //Je dois envoyé ici toute les informations pour commencer le peer to peer
+
+                boolean is_starting = ma_game.is_gaming();
+                //Scanner scanner = new Scanner(System.in);
+
+                System.out.println(is_starting);
+                if (!is_starting){
+                    ma_game.start_game();
+                    ma_game.setStarteur(context.getNom());
+                    /*
+                    System.out.println("Entrez votre combinaison secrete separé par des virgules \",\": ");
+                    String combinaison = scanner.nextLine().trim();
+                    List<String> combine = Arrays.asList(combinaison.split(","));
+                    context.add_combinaison_in_sall(salle, combine);
+
+                     */
+                    out.println("GG|CHOSE_COMBINATION");
+                    //out.println("GG|GAME_STARTED");
+                }else{
+                    String master = ma_game.get_starteur();
+
+                    out.println("GG|SEND_MASTER|"+ master + "|"+ma_game.liste_joueur_info());
+                }
+
             default:
                 System.out.println("Choix invalide");
         }
@@ -175,3 +204,4 @@ public class MessageParser {
     }
 
 }
+//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

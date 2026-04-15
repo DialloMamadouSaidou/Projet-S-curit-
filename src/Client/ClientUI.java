@@ -1,4 +1,9 @@
 import java.awt.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
 import java.util.Scanner;
 
 public class ClientUI {
@@ -7,6 +12,13 @@ public class ClientUI {
     private ClientConnection connection;
     private MessageParser parser;
 
+    //-----------------Pour la connexion Peer to Peer
+
+    private int p2pPort;
+    private PeerManager peerManager;
+    private PeerListener peerListener;
+    private String playerName;
+
     public ClientUI(){
         scanner = new Scanner(System.in);
         parser = new MessageParser();
@@ -14,6 +26,11 @@ public class ClientUI {
     }
 
     private boolean connectToServer(){
+        this.peerManager = new PeerManager();
+        this.peerListener = new PeerListener(0, peerManager);
+        this.peerListener.start();
+        this.p2pPort = peerListener.getServerPort();
+
         System.out.println("IP du server : ");
         String ip = scanner.nextLine();
 
@@ -29,7 +46,7 @@ public class ClientUI {
         System.out.print("Nom du joueur :");
         String name = scanner.nextLine();
 
-        connection.sendMessage("GG|CONNECT| " + name);
+        connection.sendMessage("GG|CONNECT|" + name + "|"+this.p2pPort);
 
         String response = connection.readMessage();
 
@@ -37,6 +54,29 @@ public class ClientUI {
         return true;
     }
 
+    private void connectToPeers(String playersInfo){
+        String[] players = playersInfo.split(";");
+        for (String p : players) {
+            String[] details = p.split(":");
+            String name = details[0].trim();
+            int port = Integer.parseInt(details[1].trim());
+
+            if(p.trim().isEmpty()){continue;}
+
+            try {
+                // On force l'usage de localhost
+                Socket s = new Socket("127.0.0.1", port);
+                BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream()));
+                PrintWriter out = new PrintWriter(s.getOutputStream(), true);
+
+                PeerConnection pc = new PeerConnection(s, peerManager, name, in, out);
+                pc.send("GG|HELLO|"+name);
+                pc.start();
+            } catch (IOException e) {
+                System.out.println("Erreur de connexion locale à " + name);
+            }
+        }
+    }
     private void mainMenu(){
         boolean running = true;
 
@@ -45,24 +85,35 @@ public class ClientUI {
             System.out.println("1. Lister les salles");
             System.out.println("2. Créer une salle");
             System.out.println("3. Rejoindre une salle");
+            System.out.println("4. Quitter une salle");
+            System.out.println("5.Demarrer un jeu");
             System.out.println("0. Quitter");
-
             System.out.println("Entrez votre choix: ");
 
             String choice = scanner.nextLine();
             System.out.println("Mon choix est: "+ choice);
             switch(choice){
                 case "1":
-                    //listRooms();
+                    listRooms();
                     System.out.println("Choix 1");
                     break;
                 case "2":
-                    //createRoom();
+                    createRoom();
                     System.out.println("Choix 2");
                     break;
                 case "3":
-                    //joinRoom();
+                    joinRoom();
+                    System.out.println("Choix 3");
+                    break;
+                case "4":
+                    Leave_room();
                     System.out.println("Choix 4");
+                    break;
+                case "5":
+                    System.out.print("Entrez  le nom de la salle à laquelle vous voulez commencez la partie: ");
+                    String name_salle = scanner.nextLine();
+                    start_game(name_salle);
+                    System.out.println("Diallo");
                     break;
                 case "0":
                     running = false;
@@ -77,6 +128,7 @@ public class ClientUI {
     public void start(){
         System.out.println("=== GUES GAME CLIENT ===");
 
+
         if(!connectToServer()){
             System.out.println("Impossible de se  connecter.");
             return;
@@ -84,18 +136,40 @@ public class ClientUI {
         mainMenu();
     }
 
+    public void start_game(String nom_salle){
+        System.out.println("Mamadou Saidou");
+        String startMsg = "GG|GAME_START|";
+
+        connection.sendMessage("GG|GAME_STARTED|"+nom_salle);
+        if(peerManager != null){
+            peerManager.broadcast(startMsg);
+        }
+        String message = connection.readMessage();
+        System.out.println("Mon message est: " + message);
+        Scanner scanner1 = new Scanner(System.in);
+        if(message.equals("GG|CHOSE_COMBINATION")){
+            System.out.println("Vous commencez la partie: entrez votre combinaison: ");
+            String comb = scanner1.nextLine();
+            connection.sendMessage("GG|COMBINAISON|"+comb);
+        }else if(message.startsWith("GG|SEND_MASTER|")){
+
+            String[] parts = message.split("\\|");
+            String masterName = parts[2];
+            String playerInfo = parts[3];
+
+            peerManager.add_master_game(nom_salle, masterName);
+            connectToPeers(playerInfo);
+            System.out.println("Mon master est: "+ masterName);
+            peerManager.send_combine(nom_salle, "baba");
+        }
+
+        parser.displayMessageDetails(message);
+    }
     public void listRooms(){
-        connection.sendMessage("GG|LIST ROOMS");
+        connection.sendMessage("GG|LIST_ROOM");
         String response = connection.readMessage();
         parser.displayMessageDetails(response);
 
-        if(parser.getMessageType(response).equals("ROOM_LIST")){
-            String field= parser.getField(response, 2);
-
-            for(String room : parser.parseListField(field)){
-                System.out.println("- " + room);
-            }
-        }
     }
 
     public void createRoom(){
@@ -108,9 +182,11 @@ public class ClientUI {
         System.out.println("Max players :");
         String maxAttemps = scanner.nextLine();
 
-        String message = "GG|CREATE_ROOM| " + room + "|" + maxPlayers + "|" + maxAttemps;
+        String message = "GG|CREATE_ROOM|" + room + "|" + maxPlayers + "|" + maxAttemps;
         connection.sendMessage(message);
         String response = connection.readMessage();
+
+
         parser.displayMessageDetails(response);
     }
 
@@ -118,18 +194,19 @@ public class ClientUI {
         System.out.println("Nom de la salle :");
         String room = scanner.nextLine();
 
-        connection.sendMessage("GG|JOIN ROOM| " + room);
+        connection.sendMessage("GG|JOIN_ROOM|" + room);
         String response = connection.readMessage();
         parser.displayMessageDetails(response);
-        if(parser.getMessageType(response).equals("ROOM_JOIN")){
-            String playersField = parser.getField(response, 3);
 
-            System.out.println("Joueurs dans la salle :");
+    }
 
-            for(String player : parser.parseListField(playersField)){
-                System.out.println("- " + player);
-            }
-        }
+    private void Leave_room(){
+
+        System.out.println("Nom de la salle : ");
+        String room = scanner.nextLine().trim();
+        connection.sendMessage("GG|LEAVE_ROOM|"+room);
+        String reponse = connection.readMessage();
+        parser.displayMessageDetails(reponse);
     }
 
 

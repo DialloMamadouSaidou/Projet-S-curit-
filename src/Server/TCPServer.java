@@ -35,7 +35,4 @@ public class TCPServer {
         }
     }
 
-    public static String ServerSetName(String name) {
-        return name;
-    }
 }
