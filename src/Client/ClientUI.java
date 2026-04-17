@@ -24,6 +24,7 @@ public class ClientUI {
         parser = new MessageParser();
         connection = new ClientConnection();
     }
+    public void setName(String nameJoeur){this.playerName = nameJoeur;}
 
     private boolean connectToServer(){
         this.peerManager = new PeerManager();
@@ -45,7 +46,7 @@ public class ClientUI {
 
         System.out.print("Nom du joueur :");
         String name = scanner.nextLine();
-
+        setName(name);
         connection.sendMessage("GG|CONNECT|" + name + "|"+this.p2pPort);
 
         String response = connection.readMessage();
@@ -72,12 +73,20 @@ public class ClientUI {
                 PeerConnection pc = new PeerConnection(s, peerManager, name, in, out);
                 peerManager.addPeer(name, pc);
                 pc.send("GG|HELLO|"+name);
-                pc.start();
+                System.out.println("Name Salle: " + nameSalle);
+                System.out.println("Mon name est: " + name);
+                System.out.println("Mon name master est: "+ nameMaster);
+                peerManager.add_gamer(nameSalle, pc);
+                /*
                 if (!name.equals(nameMaster)){
 
                     peerManager.add_gamer(nameSalle, pc);
 
                 }
+                *
+                 */
+                pc.start();
+
 
 
             } catch (IOException e) {
@@ -165,7 +174,9 @@ public class ClientUI {
             String masterName = parts[2];
             String playerInfo = parts[3];
             connectToPeers(playerInfo, nom_salle, masterName);
+
             peerManager.add_master_game(nom_salle, masterName);
+            try { Thread.sleep(500); } catch (InterruptedException e) {}
             String combinaison;
             String choice;
 
@@ -173,7 +184,7 @@ public class ClientUI {
             while(again){
                 System.out.println("Entrez votre combinaison pour plusieurs choix separé les avec des \",\": ");
                 combinaison = scanner.nextLine();
-                peerManager.send_combine(nom_salle, combinaison);
+                peerManager.send_combine(nom_salle, combinaison, playerName);
                 System.out.print("Voulez-vous continuez (O/o) our (n/N): ");
                 choice = scanner.nextLine();
 

@@ -54,11 +54,12 @@ public class PeerListener extends Thread {
                     pc.start();
 
                     System.out.println("Nouveau pair connecté : " + remotePeerName);
-                } else {
-                    s.close();
+                }else{
+                    System.out.println("Autre conneion");
                 }
             }
         } catch (IOException e) {
+            System.out.println("Mon message derreur est: "+e);
             if (!serverSocket.isClosed()) {
                 System.out.println("Erreur PeerListener : " + e.getMessage());
             }

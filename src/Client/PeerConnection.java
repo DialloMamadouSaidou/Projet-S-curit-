@@ -11,6 +11,11 @@ public class PeerConnection extends Thread {
     private PrintWriter out;
 
 
+    public PeerConnection(Socket socket, PeerManager manager) {
+        this.socket = socket;
+        this.manager = manager;
+    }
+
     public PeerConnection(Socket socket, PeerManager manager, String peerName, BufferedReader in, PrintWriter out) {
         this.socket = socket;
         this.manager = manager;
@@ -44,6 +49,7 @@ public class PeerConnection extends Thread {
                 manager.handleMessage(peerName, line);
             }
         } catch (Exception e) {
+            System.out.println("Mon erreur es: "+e);
             System.out.println("Déconnexion de " + peerName);
         }
     }
