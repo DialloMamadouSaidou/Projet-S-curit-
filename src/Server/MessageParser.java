@@ -19,14 +19,6 @@ public class MessageParser {
         return  message.split("\\|");
     }
 
-    public  String getField(String message){
-        String[] parts = getParts(message);
-        int index = 0;
-        if (index<parts.length){
-            return parts[index];
-        }
-        return null;
-    }
 
     //Gestion des requestes
     /*
@@ -60,7 +52,7 @@ public class MessageParser {
         String action = parser_message[1].toUpperCase();
 
         //je recupere ici les requete qui demandent seulement deux paramètres.
-        List<String> all_request = List.of("CONNECT", "LIST_ROOM", "LEAVE_ROOM", "QUICK_ROOM", "GAME_STARTED");
+        List<String> all_request = List.of("CONNECT", "LIST_ROOM", "LEAVE_ROOM", "QUICK_ROOM", "GAME_STARTED", "COMBINAISON");
 
 
         if(all_request.contains(action)){
@@ -72,23 +64,6 @@ public class MessageParser {
 
         return null;
 
-    }
-    public List<String> parseListField(String field){
-        List<String> items = new ArrayList<>();
-
-        if(field == null || field.trim().isEmpty()){
-            return items;
-        }
-        String[] parts = field.split(",");
-        for(String part : parts){
-            items.add(part.trim());
-        }
-        return items;
-    }
-
-    public boolean hasMinimumFields(String message, int minFields){
-        String[] parts = getParts(message);
-        return parts.length >= minFields;
     }
 
     public void displayMessageDetails(String message){
@@ -107,12 +82,13 @@ public class MessageParser {
     }
 
     public void handle(String message, PrintWriter out, ClientHandlerTCP context){
+        System.out.println("Ma mess est: "+ message);
         String salle;
         boolean reponse;
         System.out.println("Les parties de mon message sont: " + String.join(" ", typeMessage(message)));
         String[] parts = getParts(message);
         String mon_message = typeMessage(message);
-
+        System.out.println("Mon message est: "+ mon_message);
         switch (mon_message){
             case "CONNECT":
                 String nom = message.split("\\|")[2].trim();
@@ -123,6 +99,9 @@ public class MessageParser {
                 context.setNom(nom);
 
                 out.println("GG|OK|Bienvenue " + nom);
+                break;
+            case "COMBINAISON":
+                System.out.println("Ma combinaison");
                 break;
             case "CREATE_ROOM":
                 System.out.println("Mon message est: " + message);
@@ -204,4 +183,3 @@ public class MessageParser {
     }
 
 }
-//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

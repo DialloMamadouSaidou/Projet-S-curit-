@@ -22,7 +22,7 @@ public class PeerManager {
 
     public void reply_to_gamer(String name_game, String reponse){
         List<PeerConnection> all_user = this.all_gamers.get(name_game);
-
+        System.out.println("Je suis la");
         if (all_user == null) {
             System.out.println("[DEBUG] Aucun joueur trouvé pour la salle : " + name_game);
             return;
@@ -53,8 +53,6 @@ public class PeerManager {
         // C'est ici que tu vas gérer les règles du jeu (Mastermind / Guess Game)
         if (msg.startsWith("GG|SECRET|")) {
             String nom_de_la_salle = msg.split("\\|")[2];
-            reply_to_gamer(nom_de_la_salle, "Reponse du serveur");
-
         }
         System.out.println("[P2P] Message de " + from + " : " + msg);
     }
