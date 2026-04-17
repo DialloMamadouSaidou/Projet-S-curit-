@@ -35,8 +35,6 @@ public class PeerListener extends Thread {
             // On libère le latch : le port est maintenant disponible pour ClientUI
             latch.countDown();
 
-            System.out.println("P2P Listener en attente sur le port : " + serverSocket.getLocalPort());
-
             while (!serverSocket.isClosed()) {
                 Socket s = serverSocket.accept();
 

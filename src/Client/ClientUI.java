@@ -54,7 +54,7 @@ public class ClientUI {
         return true;
     }
 
-    private void connectToPeers(String playersInfo){
+    private void connectToPeers(String playersInfo, String nameSalle, String nameMaster){
         String[] players = playersInfo.split(";");
         for (String p : players) {
             String[] details = p.split(":");
@@ -70,8 +70,16 @@ public class ClientUI {
                 PrintWriter out = new PrintWriter(s.getOutputStream(), true);
 
                 PeerConnection pc = new PeerConnection(s, peerManager, name, in, out);
+                peerManager.addPeer(name, pc);
                 pc.send("GG|HELLO|"+name);
                 pc.start();
+                if (!name.equals(nameMaster)){
+
+                    peerManager.add_gamer(nameSalle, pc);
+
+                }
+
+
             } catch (IOException e) {
                 System.out.println("Erreur de connexion locale à " + name);
             }
@@ -148,7 +156,7 @@ public class ClientUI {
         System.out.println("Mon message est: " + message);
         Scanner scanner1 = new Scanner(System.in);
         if(message.equals("GG|CHOSE_COMBINATION")){
-            System.out.println("Vous commencez la partie: entrez votre combinaison: ");
+            System.out.println("Vous commencez la partie: entrez votre combinaison séparé par virgule: ");
             String comb = scanner1.nextLine();
             connection.sendMessage("GG|COMBINAISON|"+comb);
         }else if(message.startsWith("GG|SEND_MASTER|")){
@@ -156,11 +164,24 @@ public class ClientUI {
             String[] parts = message.split("\\|");
             String masterName = parts[2];
             String playerInfo = parts[3];
-
+            connectToPeers(playerInfo, nom_salle, masterName);
             peerManager.add_master_game(nom_salle, masterName);
-            connectToPeers(playerInfo);
-            System.out.println("Mon master est: "+ masterName);
-            peerManager.send_combine(nom_salle, "baba");
+            String combinaison;
+            String choice;
+
+            boolean again = true;
+            while(again){
+                System.out.println("Entrez votre combinaison pour plusieurs choix separé les avec des \",\": ");
+                combinaison = scanner.nextLine();
+                peerManager.send_combine(nom_salle, combinaison);
+                System.out.print("Voulez-vous continuez (O/o) our (n/N): ");
+                choice = scanner.nextLine();
+
+                if (choice.equals("n") || choice.equals("N")) {
+                    again = false;
+                }
+            }
+
         }
 
         parser.displayMessageDetails(message);
