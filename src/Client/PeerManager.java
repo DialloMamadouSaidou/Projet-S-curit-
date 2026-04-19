@@ -1,14 +1,17 @@
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.*;// Plus sûr pour les Threads
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.stream.Collectors;
 
 public class PeerManager {
     private String myName;
     private int myPort;
     private Map<String, String> list_game_and_master = new ConcurrentHashMap<>();
-
+    private List<Map<String, Integer>> info_game = new CopyOnWriteArrayList<Map<String, Integer>>();
     private Map<String, PeerConnection> peers = new ConcurrentHashMap<>();
-    private Map<String, List<PeerConnection>> all_gamers = new ConcurrentHashMap<>();
+    private Map<String, Set<PeerConnection>> all_gamers = new ConcurrentHashMap<>();
+    private Map<String, List<String>> game_and_combine = new HashMap<>();
 
     public PeerManager(){}
     public PeerManager(String myName, int myPort) {
@@ -16,9 +19,12 @@ public class PeerManager {
         this.myPort = myPort;
     }
 
+    public void get_info_game(List<Map<String, Integer>> info_game){this.info_game = new ArrayList<>(info_game);}
+    public void set_game_and_combine(Map<String, List<String>> content_reponse){this.game_and_combine = content_reponse;}
+    public List<String> get_combine(String nomSalle){return this.game_and_combine.get(nomSalle);}
     public void add_gamer(String name_game, PeerConnection my_peer){
 
-        all_gamers.computeIfAbsent(name_game, k -> new CopyOnWriteArrayList<PeerConnection>()).add(my_peer);
+        all_gamers.computeIfAbsent(name_game, k -> new CopyOnWriteArraySet<PeerConnection>()).add(my_peer);
         System.out.println("[DEBUG] Joueur " + my_peer.getName() + " ajouté à la salle " + name_game);
         int nbJoueurs = all_gamers.get(name_game).size();
         System.out.println("[DEBUG] Salle " + name_game + " a maintenant " + nbJoueurs + " joueurs.");
@@ -26,16 +32,15 @@ public class PeerManager {
     }
 
     public void reply_to_gamer(String name_game, String reponse){
-        List<PeerConnection> all_user = this.all_gamers.get(name_game);
+        Set<PeerConnection> all_user = this.all_gamers.get(name_game);
         System.out.println("Je suis la");
         if (all_user == null) {
             System.out.println("[DEBUG] Aucun joueur trouvé pour la salle : " + name_game);
             return;
         }
 
-        System.out.println("[DEBUG] Envoi à " + all_user.size() + " joueurs dans " + name_game);
         all_user.forEach(pc -> {
-            System.out.println("[DEBUG] Envoi vers : " + pc.getName());
+
             pc.send(reponse);
         });
     }
@@ -54,6 +59,44 @@ public class PeerManager {
         peers.forEach((name, pc) -> pc.send(msg));
     }
 
+    public String send_reponse_to_gamer(List<String> list_reponse, String reponse_joueur){
+        String reponse = "";
+        List<String> list = Arrays.stream(reponse_joueur.split(","))
+                .map(String::trim)
+                .collect(Collectors.toList());
+
+        for(String i: list){
+
+            int index = list_reponse.indexOf(i.trim());
+            if(index != -1) {reponse += "|"+i+"|"+(index+1);}
+        }
+        return reponse;
+    }
+
+    private boolean is_egal_reponse(List<String> list_reponse, String reponse_joueur){
+        List<String> list = Arrays.stream(reponse_joueur.split(","))
+                .map(String::trim)
+                .collect(Collectors.toList());
+
+        if(list_reponse.equals(list)){
+            return true;
+        }
+        return false;
+    }
+    public boolean decrementerTentative(String nom_salle) {
+        for (Map<String, Integer> game : info_game) {
+            if (game.containsKey(nom_salle)) {
+                System.out.println("DEBUG: Salle trouvée ! Tentatives restantes avant : " );
+                int actuel = game.get(nom_salle);
+                if (actuel > 0) {
+                    game.put(nom_salle, actuel - 1);
+                    return true;
+                }
+
+            }
+        }
+        return false;
+    }
     public void handleMessage(String from, String msg) {
         String[] parts = msg.split("\\|");
 
@@ -73,9 +116,39 @@ public class PeerManager {
         // Cas 2 : Réception d'une tentative de jeu
         if (msg.startsWith("GG|SECRET|")) {
             String nom_de_la_salle = parts[2];
-            String name_gamer = parts[3];
-            //String combinaison = parts[3];
-            PeerConnection pcc = peers.get(name_gamer);
+            String name_game = parts[3];
+            String combinaison = parts[4];
+            List<String> all_reponse = get_combine(nom_de_la_salle);
+            boolean reponse_tentative = decrementerTentative(nom_de_la_salle);
+            PeerConnection origin = peers.get(from);
+
+            if (combinaison != null){
+
+
+                boolean is_correct = is_egal_reponse(all_reponse, combinaison);
+
+                //add_gamer(nom_de_la_salle, origin);
+                System.out.println("Is correct: "+ is_correct);
+                if (is_correct){
+                    if(origin != null){
+                        origin.send("GG|FEEDBACK|WINNER");
+                        //reply_to_gamer(name_game, "GG|FEEDBACK|WINNER");
+                    }
+                }else{
+                    String reponse_au_joueur = send_reponse_to_gamer(all_reponse, combinaison);
+
+                    if (origin != null) {
+                        origin.send("GG|FEEDBACK" + reponse_au_joueur);
+                    }
+                }
+
+            }else {
+                origin.send("GG|FEEDBACK");
+            }
+        }
+
+
+            /*
             //pcc.send("Reponse du serveur");
             //System.out.println("Mon pc est: " + pcc.getName());
             if (pcc != null) {
@@ -83,18 +156,14 @@ public class PeerManager {
                 pcc.send("GG|RESULT|Bulls:1|Cows:2"); // Utilise un vrai protocole !
             } else {
                 // Option de secours : Si on ne trouve pas par le nom, on répond à celui qui a envoyé le message
-                System.err.println("[ERREUR] Impossible de trouver le pair : " + name_gamer);
                 System.out.println("[DEBUG] Liste des pairs connus : " + peers.keySet());
-
+                System.out.println("Ma combinaison es:t "+get_combine(nom_de_la_salle));
                 // On essaie de récupérer la connexion de celui qui vient de nous parler
-                PeerConnection origin = peers.get(from);
-                if (origin != null) {
-                    origin.send("Erreur : Je ne te reconnais pas sous le nom " + name_gamer);
-                }
+
             }
-            System.out.println("[JEU] Secret reçu pour la salle " + nom_de_la_salle);
-            //reply_to_gamer(nom_de_la_salle, "GG|RESULT|Bulls:1|Cows:2");
-        }
+            */
+
+
         System.out.println("[P2P] Message de " + from + " : " + msg);
     }
 

@@ -4,13 +4,18 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.util.Scanner;
+import java.util.*;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
 
 public class ClientUI {
 
+    //---Pour la connexion vers le serveur
     private Scanner scanner;
     private ClientConnection connection;
     private MessageParser parser;
+    private static List<Map<String, Integer>> info_game = new CopyOnWriteArrayList<Map<String, Integer>>();;
 
     //-----------------Pour la connexion Peer to Peer
 
@@ -19,10 +24,22 @@ public class ClientUI {
     private PeerListener peerListener;
     private String playerName;
 
+    //----Cette variable est utilisé lorsqu'un client deviens maitre de jeu on stocke ses reponses
+
+    private static Map<String, List<String>> reponse_game = new HashMap<>();
+
     public ClientUI(){
         scanner = new Scanner(System.in);
         parser = new MessageParser();
         connection = new ClientConnection();
+    }
+
+    public void add_combinaison(String namejeu, String combinaison){
+        List<String> list = Arrays.stream(combinaison.split(","))
+                .map(String::trim)
+                .collect(Collectors.toList());
+
+        reponse_game.put(namejeu, list);
     }
     public void setName(String nameJoeur){this.playerName = nameJoeur;}
 
@@ -167,15 +184,34 @@ public class ClientUI {
         if(message.equals("GG|CHOSE_COMBINATION")){
             System.out.println("Vous commencez la partie: entrez votre combinaison séparé par virgule: ");
             String comb = scanner1.nextLine();
+
+            this.add_combinaison(nom_salle, comb);
+            peerManager.set_game_and_combine(reponse_game);
             connection.sendMessage("GG|COMBINAISON|"+comb);
         }else if(message.startsWith("GG|SEND_MASTER|")){
 
             String[] parts = message.split("\\|");
             String masterName = parts[2];
             String playerInfo = parts[3];
+            int maxT = Integer.parseInt(parts[4]);
+            boolean salleTrouvee = false;
+            for (Map<String, Integer> game : info_game) {
+                if (game.containsKey(nom_salle)) {
+                    salleTrouvee = true;
+                    break;
+                }
+            }
+
+            if (!salleTrouvee) {
+
+                Map<String, Integer> nouvelleGame = new HashMap<>();
+                nouvelleGame.put(nom_salle, maxT);
+                info_game.add(nouvelleGame);
+            }
             connectToPeers(playerInfo, nom_salle, masterName);
 
             peerManager.add_master_game(nom_salle, masterName);
+            peerManager.get_info_game(info_game);
             try { Thread.sleep(500); } catch (InterruptedException e) {}
             String combinaison;
             String choice;

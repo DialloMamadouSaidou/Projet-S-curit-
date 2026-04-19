@@ -19,10 +19,10 @@ public class ClientHandlerTCP implements Runnable {
      public void setClientMap(Map<String, ClientHandlerTCP> clientMap){
         this.clientMap = clientMap;
      }
-
      public void setClientActive(Map<String, GameRoom> clientActive){
         this.client_active = clientActive;
      }
+     public Map<String, GameRoom> getClient_active(){return this.client_active;}
     public void setNom(String Nom){this.nom = Nom;}
     public String getNom(){return this.nom;}
 
@@ -54,15 +54,31 @@ public class ClientHandlerTCP implements Runnable {
 
         return client_active.get(nameSalle);
     }
-    public boolean add_player_to_room(String nom_salle, String nom_joueur){
+    public int add_player_to_room(String nom_salle, String nom_joueur){
 
+        /*
+            ON verifie dabord si le client existe, pour ne pas se rajouter plusieurs fois dans
+            la meme salle
+           On retourne 1, si l'ajout du joeueur sest bien passé
+           -1 si la salle nexiste pas,
+           0 si la salle est déjà atteinte
+         */
         GameRoom ma_game_room = this.client_active.get(nom_salle);
 
         if (ma_game_room != null){
-            ma_game_room.ajout_joueur(nom_joueur, p2pPort);
-            return true;
+            boolean exist = ma_game_room.is_exist_in_sall(nom_joueur);
+
+            if(exist){
+                return -2;
+            }
+            boolean reponse = ma_game_room.ajout_joueur(nom_joueur, p2pPort);
+            if(reponse){
+                return 1;
+            }else{
+                return 0;
+            }
         }
-        return false;
+        return -1;
     }
 
     public void add_combinaison_in_sall(String nameSalle, List<String>combine){

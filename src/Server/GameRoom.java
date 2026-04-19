@@ -12,6 +12,7 @@ public class GameRoom {
     private List<Joueur> listeJoueurs = new ArrayList<>();
     private String starteur;
 
+
     public GameRoom(String nom, int maxJ, int maxT, ClientHandlerTCP createur) {
         this.nomSalle = nom;
         this.maxJoueurs = maxJ;
@@ -24,15 +25,41 @@ public class GameRoom {
         return this.administrateur.getNom().equals(name);
     }
 
+
     public String get_starteur(){return this.starteur;}
     public void setStarteur(String name_starteur){this.starteur = name_starteur;}
     public boolean is_gaming(){return this.is_starting;}
     public void start_game(){this.is_starting = true;}
     public void end_game(){this.is_starting = false;}
-    public void ajout_joueur(String nom_joueur, int port) {
-        this.listeJoueurs.add(new Joueur(nom_joueur, port, 0));
+    public int getMaxTentatives(){return this.maxTentatives;}
+    public boolean ajout_joueur(String nom_joueur, int port) {
+        //ON ajoute un nouveau joueur si la limite nest pas atteinte.
+
+        if(this.maxJoueurs > 0){
+            this.listeJoueurs.add(new Joueur(nom_joueur, port, 0));
+            this.maxJoueurs--;
+            return true;
+        }
+        return false;
     }
 
+    /*
+      Le principe est simple
+      un joueur ne commence son jeu que si et seulement si
+      il fait partir de la salle
+
+     */
+    public boolean is_exist_in_sall(String nom_joueur){
+        if (listeJoueurs == null) return false;
+
+        for (Joueur val : listeJoueurs) {
+
+            if (val != null && nom_joueur != null && nom_joueur.equals(val.getName_joueur())) {
+                return true;
+            }
+        }
+        return false;
+    }
     public void remove_in_sall(String nom_joueur){
 
         for(Joueur val: listeJoueurs){

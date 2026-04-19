@@ -81,8 +81,17 @@ public class MessageParser {
 
     }
 
+    private int transform_string_in_int(String valeur){
+        int content;
+        try {
+            content = Integer.parseInt(valeur);
+        }catch(NumberFormatException e){
+            content = -1;
+        }
+        return content;
+    }
     public void handle(String message, PrintWriter out, ClientHandlerTCP context){
-        System.out.println("Ma mess est: "+ message);
+        System.out.println("Mon message est: "+ message);
         String salle;
         boolean reponse;
         System.out.println("Les parties de mon message sont: " + String.join(" ", typeMessage(message)));
@@ -107,12 +116,15 @@ public class MessageParser {
                 System.out.println("Mon message est: " + message);
 
                 String name_salle = parts[2];
-                int max_joueur = Integer.parseInt(parts[3]);
-                int max_tentative = Integer.parseInt(parts[4]);
+                int max_joueur = transform_string_in_int(parts[3]);
+                int max_tentative = transform_string_in_int(parts[4]);
 
-                context.create_salle(name_salle, max_joueur, max_tentative);
-                out.println(message);
-
+                if(max_joueur > 0 && max_tentative > 0){
+                    context.create_salle(name_salle, max_joueur, max_tentative);
+                    out.println(message);
+                }else{
+                    out.println("GG|FORMAT_ERROR|PAS|STRING_0_FLOAT");
+                }
                 break;
 
             case "LIST_ROOM":
@@ -127,14 +139,20 @@ public class MessageParser {
             case "JOIN_ROOM":
                 salle = parts[2];
                 System.out.println("Mon nom :" + context.getNom());
-                reponse = context.add_player_to_room(salle, context.getNom());
+                int reponse_context = context.add_player_to_room(salle, context.getNom());
 
-                if (reponse){
+                if (reponse_context == 1){
                     GameRoom temp = context.get_game_room(salle);
                     String list_joueur = temp.liste_joueur();
                     out.println("GG|JOINED|"+salle+"|"+list_joueur);
-                }else{
-                    out.println("GG|NOTJOINED");
+                }else if(reponse_context == 0){
+                    out.println("GG|SALLE_REMPLI");
+                }
+                else if(reponse_context == -2){
+                    out.println("GG|JOUEUR_EXISTE_DEJA");
+                }
+                else{
+                    out.println("GG|SALLNOTEXIST");
                 }
                 break;
 
@@ -151,15 +169,19 @@ public class MessageParser {
             case "GAME_STARTED":
                 salle = parts[2];
                 GameRoom ma_game = context.get_game_room(salle);
-                //Je dois envoyé ici toute les informations pour commencer le peer to peer
 
-                boolean is_starting = ma_game.is_gaming();
-                //Scanner scanner = new Scanner(System.in);
+                reponse = ma_game.is_exist_in_sall(context.getNom());
 
-                System.out.println(is_starting);
-                if (!is_starting){
-                    ma_game.start_game();
-                    ma_game.setStarteur(context.getNom());
+                if (reponse){
+                    boolean is_starting = ma_game.is_gaming();
+                    //Scanner scanner = new Scanner(System.in);
+                    //
+                    System.out.println(is_starting);
+                    System.out.println("Mon joueur est: "+ context.getNom());
+                    System.out.println("Mon starteur est: "+ ma_game.get_starteur());
+                    if (!is_starting){
+                        ma_game.start_game();
+                        ma_game.setStarteur(context.getNom());
                     /*
                     System.out.println("Entrez votre combinaison secrete separé par des virgules \",\": ");
                     String combinaison = scanner.nextLine().trim();
@@ -167,13 +189,23 @@ public class MessageParser {
                     context.add_combinaison_in_sall(salle, combine);
 
                      */
-                    out.println("GG|CHOSE_COMBINATION");
-                    //out.println("GG|GAME_STARTED");
-                }else{
-                    String master = ma_game.get_starteur();
+                        out.println("GG|CHOSE_COMBINATION");
+                        //out.println("GG|GAME_STARTED");
+                    }else{
+                        String master = ma_game.get_starteur().trim();
 
-                    out.println("GG|SEND_MASTER|"+ master + "|"+ma_game.liste_joueur_info());
+                        if(master.equals(context.getNom().trim())){
+                            out.println("GG|YOU_ARE_A_MASTER");
+                        }else{
+
+                            out.println("GG|SEND_MASTER|"+ master + "|"+ma_game.liste_joueur_info()+"|"+ma_game.getMaxTentatives());
+                        }
+                    }
+                }else{
+                        out.println("GG|VOUS_NEPOUVEZ_PAS_COMMENCEZ_LA_PARTIE_VOUS_NETES_PAS_DE_LA_SALLE");
                 }
+                //Je dois envoyé ici toute les informations pour commencer le peer to peer
+
 
             default:
                 System.out.println("Choix invalide");
