@@ -7,27 +7,29 @@ import java.util.stream.Collectors;
 public class PeerManager {
     private String myName;
     private int myPort;
+    private ClientConnection connection;
     private Map<String, String> list_game_and_master = new ConcurrentHashMap<>();
     private List<Map<String, Integer>> info_game = new CopyOnWriteArrayList<Map<String, Integer>>();
     private Map<String, PeerConnection> peers = new ConcurrentHashMap<>();
     private Map<String, Set<PeerConnection>> all_gamers = new ConcurrentHashMap<>();
     private Map<String, List<String>> game_and_combine = new HashMap<>();
 
-    public PeerManager(){}
-    public PeerManager(String myName, int myPort) {
+    public PeerManager(ClientConnection conn){this.connection = conn;}
+    public PeerManager(String myName, int myPort, ClientConnection conn) {
         this.myName = myName;
         this.myPort = myPort;
+        this.connection = conn;
     }
 
+    public void setServerConnection(ClientConnection conn){this.connection = conn;}
+    public ClientConnection getConnection(){return this.connection;}
     public void get_info_game(List<Map<String, Integer>> info_game){this.info_game = new ArrayList<>(info_game);}
     public void set_game_and_combine(Map<String, List<String>> content_reponse){this.game_and_combine = content_reponse;}
     public List<String> get_combine(String nomSalle){return this.game_and_combine.get(nomSalle);}
     public void add_gamer(String name_game, PeerConnection my_peer){
 
         all_gamers.computeIfAbsent(name_game, k -> new CopyOnWriteArraySet<PeerConnection>()).add(my_peer);
-        System.out.println("[DEBUG] Joueur " + my_peer.getName() + " ajouté à la salle " + name_game);
         int nbJoueurs = all_gamers.get(name_game).size();
-        System.out.println("[DEBUG] Salle " + name_game + " a maintenant " + nbJoueurs + " joueurs.");
 
     }
 
@@ -35,7 +37,6 @@ public class PeerManager {
         Set<PeerConnection> all_user = this.all_gamers.get(name_game);
         System.out.println("Je suis la");
         if (all_user == null) {
-            System.out.println("[DEBUG] Aucun joueur trouvé pour la salle : " + name_game);
             return;
         }
 
@@ -47,15 +48,12 @@ public class PeerManager {
     public void addPeer(String name, PeerConnection pc) {
         // Éviter d'ajouter deux fois le même joueur
         if (peers.containsKey(name)) {
-            System.out.println("Déjà connecté à " + name);
             return;
         }
         peers.put(name, pc);
-        System.out.println("[P2P] " + name + " ajouté à la liste des pairs.");
     }
 
     public void broadcast(String msg) {
-        System.out.println("[P2P] Envoi à tous : " + msg);
         peers.forEach((name, pc) -> pc.send(msg));
     }
 
@@ -86,7 +84,7 @@ public class PeerManager {
     public boolean decrementerTentative(String nom_salle) {
         for (Map<String, Integer> game : info_game) {
             if (game.containsKey(nom_salle)) {
-                System.out.println("DEBUG: Salle trouvée ! Tentatives restantes avant : " );
+                //System.out.println("DEBUG: Salle trouvée ! Tentatives restantes avant : " );
                 int actuel = game.get(nom_salle);
                 if (actuel > 0) {
                     game.put(nom_salle, actuel - 1);
@@ -100,7 +98,7 @@ public class PeerManager {
     public void handleMessage(String from, String msg) {
         String[] parts = msg.split("\\|");
 
-        System.out.println("Mon message du print est: "+msg);
+        System.out.println("Message est: "+msg);
         // Cas 1 : Nouveau joueur qui se présente
         if (msg.startsWith("GG|HELLO|")) {
             String nameSender = parts[2];
@@ -109,7 +107,6 @@ public class PeerManager {
             PeerConnection pc = peers.get(nameSender);
             if (pc != null) {
                 this.add_gamer(roomName, pc);
-                System.out.println("[MASTER] Nouveau joueur enregistré dans la salle : " + roomName);
             }
         }
 
@@ -119,18 +116,16 @@ public class PeerManager {
             String name_game = parts[3];
             String combinaison = parts[4];
             List<String> all_reponse = get_combine(nom_de_la_salle);
-            boolean reponse_tentative = decrementerTentative(nom_de_la_salle);
             PeerConnection origin = peers.get(from);
 
             if (combinaison != null){
-
-
                 boolean is_correct = is_egal_reponse(all_reponse, combinaison);
-
                 //add_gamer(nom_de_la_salle, origin);
-                System.out.println("Is correct: "+ is_correct);
+                //System.out.println("Is correct: "+ is_correct);
                 if (is_correct){
                     if(origin != null){
+                        ClientConnection conn = getConnection();
+                        conn.sendMessage("GG|WINNER|"+nom_de_la_salle);
                         origin.send("GG|FEEDBACK|WINNER");
                         //reply_to_gamer(name_game, "GG|FEEDBACK|WINNER");
                     }
@@ -164,7 +159,7 @@ public class PeerManager {
             */
 
 
-        System.out.println("[P2P] Message de " + from + " : " + msg);
+        //System.out.println("[P2P] Message de " + from + " : " + msg);
     }
 
     public void removePeer(String name) {
@@ -177,10 +172,8 @@ public class PeerManager {
 
     public void send_combine(String name_game, String combine, String nameGamer) {
         String master = this.list_game_and_master.get(name_game);
-        System.out.println("Mon master est: "+ master);
 
         if (master == null) {
-            System.err.println("Erreur : Aucun master enregistré pour la salle " + name_game);
             return;
         }
 
@@ -201,7 +194,6 @@ public class PeerManager {
         }
 
         if (ma_socket != null) {
-            System.out.println("[P2P] Envoi de la combinaison au master : " + master);
             ma_socket.send("GG|SECRET|"+name_game+"|"+ nameGamer+"|"+combine);
         } else {
             System.err.println("Erreur : Impossible de contacter le Master " + master + " après plusieurs tentatives.");

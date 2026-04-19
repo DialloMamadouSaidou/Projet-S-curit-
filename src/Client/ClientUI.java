@@ -13,7 +13,7 @@ public class ClientUI {
 
     //---Pour la connexion vers le serveur
     private Scanner scanner;
-    private ClientConnection connection;
+    private static ClientConnection connection;
     private MessageParser parser;
     private static List<Map<String, Integer>> info_game = new CopyOnWriteArrayList<Map<String, Integer>>();;
 
@@ -42,9 +42,10 @@ public class ClientUI {
         reponse_game.put(namejeu, list);
     }
     public void setName(String nameJoeur){this.playerName = nameJoeur;}
+    public String getName(){return this.playerName;}
 
     private boolean connectToServer(){
-        this.peerManager = new PeerManager();
+        this.peerManager = new PeerManager(connection);
         this.peerListener = new PeerListener(0, peerManager);
         this.peerListener.start();
         this.p2pPort = peerListener.getServerPort();
@@ -90,18 +91,8 @@ public class ClientUI {
                 PeerConnection pc = new PeerConnection(s, peerManager, name, in, out);
                 peerManager.addPeer(name, pc);
                 pc.send("GG|HELLO|"+name);
-                System.out.println("Name Salle: " + nameSalle);
-                System.out.println("Mon name est: " + name);
-                System.out.println("Mon name master est: "+ nameMaster);
                 peerManager.add_gamer(nameSalle, pc);
-                /*
-                if (!name.equals(nameMaster)){
 
-                    peerManager.add_gamer(nameSalle, pc);
-
-                }
-                *
-                 */
                 pc.start();
 
 
@@ -120,41 +111,50 @@ public class ClientUI {
             System.out.println("2. Créer une salle");
             System.out.println("3. Rejoindre une salle");
             System.out.println("4. Quitter une salle");
-            System.out.println("5.Demarrer un jeu");
+            System.out.println("5. Demarrer un jeu");
+            System.out.println("6. Demarrer un Jeu avec le serveur");
+            System.out.println("7. Expulsez un joueur");
             System.out.println("0. Quitter");
             System.out.println("Entrez votre choix: ");
 
             String choice = scanner.nextLine();
-            System.out.println("Mon choix est: "+ choice);
+
             switch(choice){
                 case "1":
                     listRooms();
-                    System.out.println("Choix 1");
                     break;
                 case "2":
                     createRoom();
-                    System.out.println("Choix 2");
+
                     break;
                 case "3":
                     joinRoom();
-                    System.out.println("Choix 3");
+
                     break;
                 case "4":
                     Leave_room();
-                    System.out.println("Choix 4");
+
                     break;
                 case "5":
                     System.out.print("Entrez  le nom de la salle à laquelle vous voulez commencez la partie: ");
                     String name_salle = scanner.nextLine();
                     start_game(name_salle);
-                    System.out.println("Diallo");
                     break;
+                case "6":
+                    Play_with_server();
+                    break;
+                case "7":
+                    System.out.println("Donnez Le nom de la salle: ");
+                    String name_salles = scanner.nextLine();
+                    System.out.print("Donnez le nomm du  joueur à expulsez: ");
+                    String nom_joueur = scanner.nextLine();
+                    Quick_player(name_salles, nom_joueur);
                 case "0":
                     running = false;
                     connection.closeConnection();
                     break;
-                    default:
-                        System.out.println("Choix invalide.");
+                default:
+                    System.out.println("Choix invalide.");
             }
         }
     }
@@ -170,11 +170,46 @@ public class ClientUI {
         mainMenu();
     }
 
-    public void start_game(String nom_salle){
-        System.out.println("Mamadou Saidou");
-        String startMsg = "GG|GAME_START|";
+    public void Play_with_server(){
+        Scanner scanner1 = new Scanner(System.in);
+        boolean continu = true;
 
+        while(continu){
+
+            System.out.print("Entrez votre combinaison: ");
+            String combinaison = scanner1.nextLine();
+
+            if(combinaison.trim().isEmpty()){
+                combinaison = "saidou";
+            }
+            connection.sendMessage("GG|GAME_WITH_SERVER|"+this.playerName+"|"+combinaison);
+            String reponse = connection.readMessage();
+
+            System.out.println(reponse);
+            if(reponse.equals("GG|WINNER")){
+
+                return;
+            }
+            System.out.println("Voulez vous continuez, (O/o) ou (n/N): ");
+            String choice = scanner.nextLine();
+
+            if(choice.equals("n") || choice.equals("N")) continu = false;
+        }
+
+    }
+    public void Quick_player(String name_salle, String playerName){
+
+        connection.sendMessage("GG|QUICK_PLAYER|"+name_salle+"|"+playerName);
+        String reponse = connection.readMessage();
+
+        parser.displayMessageDetails(reponse);
+        System.out.println(reponse);
+    }
+    public void start_game(String nom_salle){
+
+        String startMsg = "GG|GAME_START|";
         connection.sendMessage("GG|GAME_STARTED|"+nom_salle);
+
         if(peerManager != null){
             peerManager.broadcast(startMsg);
         }
@@ -187,7 +222,7 @@ public class ClientUI {
 
             this.add_combinaison(nom_salle, comb);
             peerManager.set_game_and_combine(reponse_game);
-            connection.sendMessage("GG|COMBINAISON|"+comb);
+
         }else if(message.startsWith("GG|SEND_MASTER|")){
 
             String[] parts = message.split("\\|");
@@ -220,7 +255,13 @@ public class ClientUI {
             while(again){
                 System.out.println("Entrez votre combinaison pour plusieurs choix separé les avec des \",\": ");
                 combinaison = scanner.nextLine();
-                peerManager.send_combine(nom_salle, combinaison, playerName);
+
+                if(combinaison != null){
+                    peerManager.send_combine(nom_salle, combinaison, playerName);
+                }else {
+                    peerManager.send_combine(nom_salle, "", playerName);
+                }
+
                 System.out.print("Voulez-vous continuez (O/o) our (n/N): ");
                 choice = scanner.nextLine();
 

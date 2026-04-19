@@ -1,8 +1,13 @@
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 public class MessageParser {
+    //Cette variable est utilisé poour les jeux avec le serveur.
+    private Map<String,List<String>> info_gaming = new ConcurrentHashMap<>();
 
+    public Map<String,List<String>> get_info_gaming(){return this.info_gaming;}
     public boolean isValidMessage(String message){
         if(message == null || message.trim().isEmpty()){
             return false;
@@ -61,6 +66,9 @@ public class MessageParser {
         if (action.equals("CREATE_ROOM") && parser_message.length == 5) return action;
 
         if (action.equals("JOIN_ROOM") && parser_message.length == 3) return action;
+        if(action.equals("WINNER") && parser_message.length == 3) return action;
+        if(action.equals("QUICK_PLAYER")) return action;
+        if(action.equals("GAME_WITH_SERVER")) return action;
 
         return null;
 
@@ -109,9 +117,6 @@ public class MessageParser {
 
                 out.println("GG|OK|Bienvenue " + nom);
                 break;
-            case "COMBINAISON":
-                System.out.println("Ma combinaison");
-                break;
             case "CREATE_ROOM":
                 System.out.println("Mon message est: " + message);
 
@@ -120,8 +125,14 @@ public class MessageParser {
                 int max_tentative = transform_string_in_int(parts[4]);
 
                 if(max_joueur > 0 && max_tentative > 0){
-                    context.create_salle(name_salle, max_joueur, max_tentative);
-                    out.println(message);
+                    boolean is_creat = context.create_salle(name_salle, max_joueur, max_tentative);
+
+                    if(is_creat){
+                        out.println("GG|ROOM|"+name_salle+"|CREATE");
+                    }else{
+                        out.println("GG|ROOM|"+name_salle+"|EXIST");
+                    }
+
                 }else{
                     out.println("GG|FORMAT_ERROR|PAS|STRING_0_FLOAT");
                 }
@@ -170,18 +181,18 @@ public class MessageParser {
                 salle = parts[2];
                 GameRoom ma_game = context.get_game_room(salle);
 
-                reponse = ma_game.is_exist_in_sall(context.getNom());
-
-                if (reponse){
-                    boolean is_starting = ma_game.is_gaming();
-                    //Scanner scanner = new Scanner(System.in);
-                    //
-                    System.out.println(is_starting);
-                    System.out.println("Mon joueur est: "+ context.getNom());
-                    System.out.println("Mon starteur est: "+ ma_game.get_starteur());
-                    if (!is_starting){
-                        ma_game.start_game();
-                        ma_game.setStarteur(context.getNom());
+                if(ma_game != null){
+                    reponse = ma_game.is_exist_in_sall(context.getNom());
+                    if (reponse){
+                        boolean is_starting = ma_game.is_gaming();
+                        //Scanner scanner = new Scanner(System.in);
+                        //
+                        System.out.println(is_starting);
+                        System.out.println("Mon joueur est: "+ context.getNom());
+                        System.out.println("Mon starteur est: "+ ma_game.get_starteur());
+                        if (!is_starting){
+                            ma_game.start_game();
+                            ma_game.setStarteur(context.getNom());
                     /*
                     System.out.println("Entrez votre combinaison secrete separé par des virgules \",\": ");
                     String combinaison = scanner.nextLine().trim();
@@ -189,23 +200,89 @@ public class MessageParser {
                     context.add_combinaison_in_sall(salle, combine);
 
                      */
-                        out.println("GG|CHOSE_COMBINATION");
-                        //out.println("GG|GAME_STARTED");
-                    }else{
-                        String master = ma_game.get_starteur().trim();
-
-                        if(master.equals(context.getNom().trim())){
-                            out.println("GG|YOU_ARE_A_MASTER");
+                            out.println("GG|CHOSE_COMBINATION");
+                            //out.println("GG|GAME_STARTED");
                         }else{
+                            String master = ma_game.get_starteur().trim();
 
-                            out.println("GG|SEND_MASTER|"+ master + "|"+ma_game.liste_joueur_info()+"|"+ma_game.getMaxTentatives());
+                            if(master.equals(context.getNom().trim())){
+                                out.println("GG|YOU_ARE_A_MASTER");
+                            }else{
+
+                                out.println("GG|SEND_MASTER|"+ master + "|"+ma_game.liste_joueur_info()+"|"+ma_game.getMaxTentatives());
+                            }
                         }
-                    }
-                }else{
+                    }else{
                         out.println("GG|VOUS_NEPOUVEZ_PAS_COMMENCEZ_LA_PARTIE_VOUS_NETES_PAS_DE_LA_SALLE");
+                    }
+                }else {
+                    out.println("GG|SALL_NOT_EXIST");
                 }
-                //Je dois envoyé ici toute les informations pour commencer le peer to peer
 
+                //Je dois envoyé ici toute les informations pour commencer le peer to peer
+            case "WINNER":
+                String nom_salle = parts[2];
+                GameRoom ma_games = context.get_game_room(nom_salle);
+                if(ma_games != null){
+                    ma_games.end_game();
+                }
+
+                break;
+
+            case "QUICK_PLAYER":
+                String rooom = parts[2];
+                String player_to_quick = parts[3];
+
+                boolean answer = context.quick_player(rooom, player_to_quick);
+                if(answer){
+                    out.println("GG|PLAYER_QUICK");
+                }else{
+                    out.println("GG|YOU_ARE_NOT_A_ADMIN");
+                }
+                //GameRoom salle_concerne = context.get_game_room()
+
+            case "GAME_WITH_SERVER":
+                String name_joueur = parts[2];
+                String combine = parts[3];
+                System.out.println("Jeu avec le server");
+
+                List<String> combinaison = obtien_joueur(name_joueur);
+
+                if(combinaison == null){
+                    List<String> temp_list = put_info_for_gamer();
+                    System.out.println(temp_list);
+                    ajout_combinaison(name_joueur, temp_list);
+
+                    boolean reponses = is_egal_reponse(temp_list, combine);
+
+                    if(reponses){
+                        out.println("GG|WINNER");
+                        //-On redemarre un autre level pour autre cas
+
+                        temp_list = put_info_for_gamer();
+                        ajout_combinaison(name_joueur, temp_list);
+                    }else {
+                        String reponse_to_joueur = send_reponse_to_gamer(temp_list, combine);
+                        out.println("GG|FEEDBACK|"+reponse_to_joueur);
+                    }
+                }else {
+
+                    //ajout_combinaison(name_joueur, temp_list);
+
+                    boolean reponses = is_egal_reponse(combinaison, combine);
+
+                    if(reponses){
+                        out.println("GG|WINNER");
+                        //-On redemarre un autre level pour autre cas
+
+                        List<String> temp_list = put_info_for_gamer();
+                        ajout_combinaison(name_joueur, temp_list);
+                    }else {
+                        String reponse_to_joueur = send_reponse_to_gamer(combinaison, combine);
+                        out.println("GG|FEEDBACK|"+reponse_to_joueur);
+                    }
+                }
+                break;
 
             default:
                 System.out.println("Choix invalide");
@@ -214,4 +291,51 @@ public class MessageParser {
 
     }
 
+    public List<String> obtien_joueur(String nom_joeur){
+        return this.info_gaming.get(nom_joeur);
+    }
+
+    public void ajout_combinaison(String nom_joueur, List<String> combine){
+        this.info_gaming.put(nom_joueur, combine);
+    }
+    public List<String> put_info_for_gamer() {
+        // Un large choix d'éléments pour augmenter la difficulté
+        List<String> options = Arrays.asList(
+                "Rouge", "Bleu", "Vert", "Jaune", "Orange",
+                "Violet", "Rose", "Marron", "Gris", "Cyan"
+        );
+
+        // On mélange la liste
+        Collections.shuffle(options);
+
+        // On ne prend que les 4 premiers après le mélange
+        return options.stream()
+                .limit(4)
+                .collect(Collectors.toList());
+    }
+
+    private boolean is_egal_reponse(List<String> list_reponse, String reponse_joueur){
+        List<String> list = Arrays.stream(reponse_joueur.split(","))
+                .map(String::trim)
+                .collect(Collectors.toList());
+
+        if(list_reponse.equals(list)){
+            return true;
+        }
+        return false;
+    }
+
+    public String send_reponse_to_gamer(List<String> list_reponse, String reponse_joueur){
+        String reponse = "";
+        List<String> list = Arrays.stream(reponse_joueur.split(","))
+                .map(String::trim)
+                .collect(Collectors.toList());
+
+        for(String i: list){
+
+            int index = list_reponse.indexOf(i.trim());
+            if(index != -1) {reponse += "|"+i+"|"+(index+1);}
+        }
+        return reponse;
+    }
 }

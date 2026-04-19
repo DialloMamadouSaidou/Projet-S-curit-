@@ -60,14 +60,13 @@ public class GameRoom {
         }
         return false;
     }
+
+    public void quick_player(String player_name){
+        remove_in_sall(player_name);
+    }
     public void remove_in_sall(String nom_joueur){
 
-        for(Joueur val: listeJoueurs){
-
-            if(val.getName_joueur().equals(nom_joueur)){
-                listeJoueurs.remove(this);
-            }
-        }
+        listeJoueurs.removeIf(joueur -> joueur.getName_joueur().equals(nom_joueur));
 
     }
 

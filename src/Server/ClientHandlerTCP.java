@@ -1,6 +1,7 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ClientHandlerTCP implements Runnable {
 
@@ -11,6 +12,8 @@ public class ClientHandlerTCP implements Runnable {
     private Map<String, ClientHandlerTCP> clientMap;
     private Map<String, GameRoom> client_active;
     private MessageParser logicHandler;
+
+
 
     public void setSocket(Socket ss){
         this.clientSocket = ss;
@@ -31,10 +34,28 @@ public class ClientHandlerTCP implements Runnable {
         this.p2pPort =  port;
         this.ipClient = clientSocket.getInetAddress().getHostAddress();
     }
-    public void create_salle(String name_salle, int max_joueur,  int max_tentatives) {
 
-        GameRoom temp = new GameRoom(name_salle, max_joueur, max_tentatives, this);
-        client_active.put(name_salle, temp);
+    public boolean quick_player(String name_salle, String name_joueur){
+        GameRoom ma_game = this.client_active.get(name_salle);
+
+        if(ma_game.isAdmin(nom)){
+            ma_game.quick_player(name_joueur);
+            return true;
+        }
+        return false;
+    }
+    public boolean create_salle(String name_salle, int max_joueur,  int max_tentatives) {
+
+        GameRoom game_temp = this.client_active.get(name_salle);
+
+        if(game_temp != null){
+            return false;
+        }else {
+            GameRoom temp = new GameRoom(name_salle, max_joueur, max_tentatives, this);
+            client_active.put(name_salle, temp);
+            return true;
+        }
+
     }
 
     public boolean remove_user_in_salle(String name_salle, String name_joueur){

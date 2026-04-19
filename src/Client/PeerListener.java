@@ -44,7 +44,7 @@ public class PeerListener extends Thread {
 
                 String hello = in.readLine();
 
-                System.out.println("Mon message recu de ma connection " + hello);
+                //System.out.println("Mon message recu de ma connection " + hello);
                 if (hello != null && hello.startsWith("GG|HELLO|")) {
                     String remotePeerName = hello.split("\\|")[2].trim();
 
@@ -53,13 +53,13 @@ public class PeerListener extends Thread {
                     manager.addPeer(remotePeerName, pc);
                     pc.start();
 
-                    System.out.println("Nouveau pair connecté : " + remotePeerName);
+                    //System.out.println("Nouveau pair connecté : " + remotePeerName);
                 }else{
                     System.out.println("Autre conneion");
                 }
             }
         } catch (IOException e) {
-            System.out.println("Mon message derreur est: "+e);
+            //System.out.println("Mon message derreur est: "+e);
             if (!serverSocket.isClosed()) {
                 System.out.println("Erreur PeerListener : " + e.getMessage());
             }
